@@ -70,19 +70,18 @@ def setup(args):
     burn_timers = None
 
     config.state_colors = [
-        (0.16, 0.16, 0.16),  # 0: Burnt
-        (1.00, 0.27, 0.00),  # 1: Burning
-        (0.63, 0.32, 0.18),  # 2: Canyon
-        (0.60, 0.66, 0.28),  # 3: Chaparral
-        (0.13, 0.55, 0.13),  # 4: Forest
-        (0.12, 0.56, 1.00),  # 5: Lake
-        (0.66, 0.66, 0.66),  # 6: Town
-        (1.00, 0.84, 0.00),  # 7: Hazard
+        (66, 44, 35),    # 0: Burnt
+        (255, 98, 31),   # 1: Burning
+        (255, 253, 75),  # 2: Canyon
+        (191, 189, 55),  # 3: Chaparral
+        (77, 98, 47),    # 4: Forest
+        (0, 181, 235),   # 5: Lake
+        (0, 0, 0),       # 6: Town
+        (0, 0, 0),       # 7: Hazard
     ]
 
-    # TODO set our map here
-    # config.grid_dims = (200,200)
-    # config.initial_grid = (we set our custom grid here)
+    config.grid_dims = (20,20)
+    config.initial_grid = load_map("town_map.txt")
 
     if len(args) == 2:
         config.save()
@@ -151,6 +150,25 @@ def try_ignite(state, burning_neighbours):
     p = BURN_PROBABILITIES[state]
     cumulative_prob = 1.0 - (1.0 - p) ** burning_neighbours
     return np.random.random() < cumulative_prob
+
+def load_map(path):
+    with open(path, "r") as f:
+        rows = [line.strip().split() for line in f if line.strip()]
+
+    mapping = {
+        "H": States.Hazard,
+        "L": States.Lake,
+        "C": States.Canyon,
+        "G": States.Chaparral,
+        "F": States.Forest,
+        "T": States.Town,
+    }
+
+    return np.array([
+        [mapping[cell] for cell in row]
+        for row in rows
+    ], dtype=int)
+    
 
 def main():
     """ Main function that sets up, runs and saves CA"""
