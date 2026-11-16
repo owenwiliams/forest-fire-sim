@@ -33,19 +33,21 @@ class States(IntEnum):
 # neighbour. eg. if probability is 0.5, having 1 burning neighbour gives it 50% chance of burning,
 # and 2 burning neighbours brings it to 75%
 BURN_PROBABILITIES = {
-    States.Canyon: 0.5,
-    States.Chaparral: 0.4,
-    States.Forest: 0.3,
-    States.Town: 0.4, # town same as chaparral?
+    States.Canyon: 0.02,
+    States.Chaparral: 0.014,
+    States.Forest: 0.003,
+    States.Town: 0.014, # town same as chaparral?
 }
 
 # this is how long a burning square will continue to burn for (in generations)
 # first figure is minimum second is mamximum (we'll use it as a range)
+
+# rn im assuming 10 is about a day
 BURN_DURATION = {
-    States.Canyon: (4,5), # between 4 and 5 gens for canyon
-    States.Chaparral: (15,20), # between 15 and 20 for chaparral
-    States.Forest: (40, 60), # between 40 and 60 for dense forest
-    States.Town: (100,100) # idk when towns on fire it stays on fire
+    States.Canyon: (4,6),
+    States.Chaparral: (16,24), 
+    States.Forest: (120, 160), 
+    States.Town: (36,48) 
 }
 
 burn_timers = None
@@ -64,18 +66,20 @@ def setup(args):
     config.title = "Forest fire sim"
     config.dimensions = 2
     config.states = tuple(s.value for s in States)
+    config.wrap = False
+    config.num_generations = 1000
 
     global burn_timers
 
     burn_timers = None
 
     config.state_colors = [
-        (66, 44, 35),    # 0: Burnt
-        (255, 98, 31),   # 1: Burning
-        (255, 253, 75),  # 2: Canyon
-        (191, 189, 55),  # 3: Chaparral
-        (77, 98, 47),    # 4: Forest
-        (0, 181, 235),   # 5: Lake
+        (66/255, 44/255, 35/255),    # 0: Burnt
+        (255/255, 98/255, 31/255),   # 1: Burning
+        (255/255, 253/255, 75/255),  # 2: Canyon
+        (191/255, 189/255, 55/255),  # 3: Chaparral
+        (77/255, 98/255, 47/255),    # 4: Forest
+        (0, 181/255, 235/255),   # 5: Lake
         (0, 0, 0),       # 6: Town
         (0, 0, 0),       # 7: Hazard
     ]
@@ -101,13 +105,17 @@ def transition_function(grid, neighbourstates, neighbourcounts):
     # incorporate wind changing prob, would mean changing how "burning_neighbours" works
     # (for example will weigh a burning neighbour on windy side higher than one on other side)
     NW, N, NE, W, E, SW, S, SE = neighbourstates
+    all_neighbours = [NW, N, NE, W, E, SW, S, SE]
 
-    # ive made hazard count as a burning neighbour with lower value 
-    # and lake neighbours removes a little too (harder to burn next to lake)
-    burning_neighbors = neighbourcounts[States.Burning] + (0.2 * neighbourcounts[States.Hazard]) - (0.2 * neighbourcounts[States.Lake])
-    # make sure not negative
-    burning_neighbors = max(0.0, burning_neighbors)
-    
+    burning_count = sum((nb == States.Burning) for nb in all_neighbours)
+    hazard_count = sum((nb == States.Hazard) for nb in all_neighbours)
+    lake_count = sum((nb == States.Lake) for nb in all_neighbours)
+
+    burning_neighbors = np.maximum(
+        burning_count + (0.2 * hazard_count) - (0.2 * lake_count),
+        0
+    )
+
     new_grid = grid.copy()
     rows, cols = grid.shape
 
@@ -137,9 +145,8 @@ def transition_function(grid, neighbourstates, neighbourcounts):
                         # sets on fire for random duration in range
                         burn_timers[row, col] = np.random.randint(lb, ub + 1)
 
-
-    
-    return new_grid
+    grid[:] = new_grid
+    return grid
 
 # to make wind direction work we'll have to check neighbours, give them a value based on
 # wind and pass that instead as "burning neighbours"
