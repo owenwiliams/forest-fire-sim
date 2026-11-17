@@ -65,7 +65,7 @@ initial_terrain = None
 # wind implementation
 WIND_FROM = "N" # direction wind is coming FROM
 WIND_SPEED = 8 # speed in m/s
-C1, C2 = 0.045, 0.131 #
+WIND_SPEED_FACTOR, WIND_DIRECTION_FACTOR = 0.045, 0.131 #
 
 # turns compass directions into a row and column step on the grid
 COMPASS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1),
@@ -86,7 +86,7 @@ def wind_weights():
         spread /= np.linalg.norm(spread)
         cos_theta = spread @ wind_to
         # scores how well the fire's direction lines up with the wind
-        weights.append(np.exp(WIND_SPEED * (C1 + C2 * (cos_theta - 1))))
+        weights.append(np.exp(WIND_SPEED * (WIND_SPEED_FACTOR + WIND_DIRECTION_FACTOR * (cos_theta - 1))))
     return weights
 
 # runs function once and saves numbers (only needs to run at start)
