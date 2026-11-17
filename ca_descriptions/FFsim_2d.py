@@ -62,11 +62,36 @@ IGNITION = "I" # P for power plant, I for incinerator start
 HAZARD_POS = {} # filled in by load_map
 initial_terrain = None
 
-class WindDir(IntEnum):
-    N = 0
-    E = 1
-    S = 2
-    W = 3 # do we want diagonals?
+# wind implementation
+WIND_FROM = "N" # direction wind is coming FROM
+WIND_SPEED = 8 # speed in m/s
+C1, C2 = 0.045, 0.131 #
+
+# turns compass directions into a row and column step on the grid
+COMPASS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1),
+           "S": (1, 0), "SW": (1, -1), "W": (0, -1), "NW": (-1, -1)}
+# --- DO NOT CHANGE THE ORDER, HAS TO BE THIS WAY ---
+# due to a weird capyle thing, otherwise weights get attached to the wrong neighbours
+OFFSETS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+#
+def wind_weights():
+    # flips wind dir for direction wind is blowing towards
+    wind_to = -np.array(COMPASS[WIND_FROM], float)
+    wind_to /= np.linalg.norm(wind_to) # so wind diagonals are counted as strong
+    weights = []
+    # goes through neighbours one at a time, checking fire spread diagonal weights
+    for dr, dc in OFFSETS:
+        spread = -np.array([dr, dc], float)
+        spread /= np.linalg.norm(spread)
+        cos_theta = spread @ wind_to
+        # scores how well the fire's direction lines up with the wind
+        weights.append(np.exp(WIND_SPEED * (C1 + C2 * (cos_theta - 1))))
+    return weights
+
+# runs function once and saves numbers (only needs to run at start)
+WEIGHTS = wind_weights()
+print("Wind weights (NW, N, NE, W, E, SW, S, SE):", [round(float(w), 2) for w in WEIGHTS])
 
 def setup(args):
     """Set up the config object used to interact with the GUI"""
