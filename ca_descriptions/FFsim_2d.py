@@ -32,11 +32,18 @@ class States(IntEnum):
 # this variable basically is the base probability of a square setting on fire per burning
 # neighbour. eg. if probability is 0.5, having 1 burning neighbour gives it 50% chance of burning,
 # and 2 burning neighbours brings it to 75%
+# BURN_PROBABILITIES = {
+#    States.Canyon: 0.02,
+#    States.Chaparral: 0.014,
+#    States.Forest: 0.003,
+#    States.Town: 0.014, # town same as chaparral?
+# }
+
 BURN_PROBABILITIES = {
-    States.Canyon: 0.02,
-    States.Chaparral: 0.014,
-    States.Forest: 0.003,
-    States.Town: 0.014, # town same as chaparral?
+    States.Canyon: 0.6,
+    States.Chaparral: 0.12,
+    States.Forest: 0.006,
+    States.Town: 0.12,
 }
 
 # this is how long a burning square will continue to burn for (in generations)
@@ -51,6 +58,9 @@ BURN_DURATION = {
 }
 
 burn_timers = None
+IGNITION = "I" # P for power plant, I for incinerator start
+HAZARD_POS = {} # filled in by load_map
+initial_terrain = None
 
 class WindDir(IntEnum):
     N = 0
@@ -84,8 +94,13 @@ def setup(args):
         (0, 0, 0),       # 7: Hazard
     ]
 
+    # loads the map, saves a copy of the terrain. first frame seen is already burning
     config.grid_dims = (20,20)
-    config.initial_grid = load_map("town_map.txt")
+    grid = load_map("town_map.txt")
+    global initial_terrain
+    initial_terrain = grid.copy()
+    grid = ignite_at_hazard(grid, IGNITION)
+    config.initial_grid = grid
 
     if len(args) == 2:
         config.save()
@@ -101,6 +116,10 @@ def transition_function(grid, neighbourstates, neighbourcounts):
     global burn_timers
     if burn_timers is None or burn_timers.shape != grid.shape:
         burn_timers = np.zeros(grid.shape, dtype=int)
+        # giving first cells a burn time
+        for r,c in zip(*np.where(grid == States.Burning)):
+            lb,ub = BURN_DURATION[States(int(initial_terrain[r,c]))]
+            burn_timers[r,c] = np.random.randint(lb,ub+1)
 
     # incorporate wind changing prob, would mean changing how "burning_neighbours" works
     # (for example will weigh a burning neighbour on windy side higher than one on other side)
@@ -108,11 +127,11 @@ def transition_function(grid, neighbourstates, neighbourcounts):
     all_neighbours = [NW, N, NE, W, E, SW, S, SE]
 
     burning_count = sum((nb == States.Burning) for nb in all_neighbours)
-    hazard_count = sum((nb == States.Hazard) for nb in all_neighbours)
+    # hazard_count = sum((nb == States.Hazard) for nb in all_neighbours)
     lake_count = sum((nb == States.Lake) for nb in all_neighbours)
 
     burning_neighbors = np.maximum(
-        burning_count + (0.2 * hazard_count) - (0.2 * lake_count),
+        burning_count - (0.2 * lake_count),
         0
     )
 
@@ -158,18 +177,36 @@ def try_ignite(state, burning_neighbours):
     cumulative_prob = 1.0 - (1.0 - p) ** burning_neighbours
     return np.random.random() < cumulative_prob
 
+# looks at the 8 cells around chosen hazard and sets any fuel cells to burning
+def ignite_at_hazard(grid, which):
+    r0,c0 = HAZARD_POS[which]
+    rows,cols = grid.shape
+    for dr in (-1,0,1):
+        for dc in (-1,0,1):
+            r,c = r0 + dr, c0 +dc
+            if 0 <= r < rows and 0 <= c < cols and grid[r,c] in (States.Canyon,States.Chaparral, States.Forest):
+                grid[r,c] = States.Burning
+    return grid
+
 def load_map(path):
     with open(path, "r") as f:
         rows = [line.strip().split() for line in f if line.strip()]
 
     mapping = {
-        "H": States.Hazard,
+        "P": States.Hazard, # changed to accomodate both hazards, so we can pick which one to start fire at
+        "I": States.Hazard,
         "L": States.Lake,
         "C": States.Canyon,
         "G": States.Chaparral,
         "F": States.Forest,
         "T": States.Town,
     }
+
+    HAZARD_POS.clear()
+    for r, row in enumerate(rows):
+        for c,cell in enumerate(row):
+            if cell in ("P", "I"):
+                HAZARD_POS[cell] = (r,c)
 
     return np.array([
         [mapping[cell] for cell in row]
