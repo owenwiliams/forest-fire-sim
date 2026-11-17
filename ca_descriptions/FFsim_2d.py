@@ -237,6 +237,15 @@ def load_map(path):
         [mapping[cell] for cell in row]
         for row in rows
     ], dtype=int)
+
+HOURS_PER_GEN = 24 / 10  # 10 generations = roughly one day
+
+def time_to_town(timeline):
+    town = (initial_terrain == States.Town) # makes a true/false grid marking town cells
+    for gen, g in enumerate(timeline):
+        if (g[town] != States.Town).any():
+            return gen # returns current generation if town is burnt
+    return None
     
 
 def main():
@@ -246,6 +255,18 @@ def main():
     grid = Grid2D(config, transition_function)
 
     timeline = grid.run()
+    gen = time_to_town(timeline)
+    if IGNITION == "I":
+        hazard = "Incinerator"
+    elif IGNITION == "P":
+        hazard = "Power plant"
+    else:
+        hazard = "N/A"
+    if gen is None:
+        print(f"Fire did not reach the town (fire started at {hazard}, wind from {WIND_FROM})")
+    else:
+        print(f"Fire reached the town at generation {gen} "
+              f"(~{gen * HOURS_PER_GEN:.0f} hours) (fire started at {hazard}, wind from {WIND_FROM})")
 
     config.save()
 
