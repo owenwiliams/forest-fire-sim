@@ -40,9 +40,9 @@ class States(IntEnum):
 # }
 
 BURN_PROBABILITIES = {
-    States.Canyon: 0.6,
-    States.Chaparral: 0.12,
-    States.Forest: 0.006,
+    States.Canyon: 0.1,
+    States.Chaparral: 0.02,
+    States.Forest: 0.004,
     States.Town: 0.12,
 }
 
@@ -120,7 +120,7 @@ def setup(args):
     ]
 
     # loads the map, saves a copy of the terrain. first frame seen is already burning
-    config.grid_dims = (20,20)
+    config.grid_dims = (40,40)
     grid = load_map("town_map.txt")
     global initial_terrain
     initial_terrain = grid.copy()
