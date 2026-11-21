@@ -28,6 +28,7 @@ class States(IntEnum):
     Lake = 5
     Town = 6
     Hazard = 7 # power plant or incinerator
+    Wet = 8
 
 # this variable basically is the base probability of a square setting on fire per burning
 # neighbour. eg. if probability is 0.5, having 1 burning neighbour gives it 50% chance of burning,
@@ -58,6 +59,13 @@ BURN_DURATION = {
 }
 
 burn_timers = None
+
+# water budget is 12.5km^2 so 8 tiles
+MAX_WATER_TILES = 8
+# list of (row, col) tiles to drop water on
+# these tiles look normal until fire reaches them, then they turn Wet instead of Burning
+WATER_TILES = [(35, 11), (35, 12), (35, 13), (36, 11), (36, 13), (37, 11), (37, 12), (37, 13)]
+
 IGNITION = "I" # P for power plant, I for incinerator start
 HAZARD_POS = {} # filled in by load_map
 initial_terrain = None
@@ -117,6 +125,7 @@ def setup(args):
         (0, 181/255, 235/255),   # 5: Lake
         (0, 0, 0),       # 6: Town
         (0, 0, 0),       # 7: Hazard
+        (150/255, 220/255, 255/255), # 8: Wet
     ]
 
     # loads the map, saves a copy of the terrain. first frame seen is already burning
@@ -124,6 +133,8 @@ def setup(args):
     grid = load_map("town_map.txt")
     global initial_terrain
     initial_terrain = grid.copy()
+    if len(set(WATER_TILES)) > MAX_WATER_TILES:
+        raise ValueError(f"Too many water tiles: {len(set(WATER_TILES))} given, max is {MAX_WATER_TILES}")
     grid = ignite_at_hazard(grid, IGNITION)
     config.initial_grid = grid
 
@@ -171,7 +182,7 @@ def transition_function(grid, neighbourstates, neighbourcounts):
 
             match state:
                 # these ones wont change or burn
-                case States.Lake | States.Burnt | States.Hazard:
+                case States.Lake | States.Burnt | States.Hazard | States.Wet:
                     pass
 
                 # decrease the burn timer, when depleted go to burnt                
@@ -184,6 +195,10 @@ def transition_function(grid, neighbourstates, neighbourcounts):
                 # state's probability of burning
                 case _:
                     if try_ignite(state, bn):
+                        # if water dropped here, it goes wet instead of catching fire
+                        if (row, col) in WATER_TILES:
+                            new_grid[row, col] = States.Wet
+                            continue
                         new_grid[row, col] = States.Burning
                         (lb, ub) = BURN_DURATION[state]
                         # sets on fire for random duration in range
@@ -210,7 +225,8 @@ def ignite_at_hazard(grid, which):
         for dc in (-1,0,1):
             r,c = r0 + dr, c0 +dc
             if 0 <= r < rows and 0 <= c < cols and grid[r,c] in (States.Canyon,States.Chaparral, States.Forest):
-                grid[r,c] = States.Burning
+                # water tiles go wet instead of starting to burn
+                grid[r,c] = States.Wet if (r, c) in WATER_TILES else States.Burning
     return grid
 
 def load_map(path):
