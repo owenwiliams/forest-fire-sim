@@ -130,7 +130,7 @@ def setup(args):
 
     # loads the map, saves a copy of the terrain. first frame seen is already burning
     config.grid_dims = (40,40)
-    grid = load_map("town_map.txt")
+    grid = load_map("maps/town_map.txt")
     global initial_terrain
     initial_terrain = grid.copy()
     if len(set(WATER_TILES)) > MAX_WATER_TILES:
