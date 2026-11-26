@@ -24,8 +24,10 @@ IGNITION = "I" # P for power plant, I for incinerator start
 
 WIND_FROM = "N" # direction wind is coming FROM
 WIND_SPEED = 8 # speed in m/s
+WIND_SPEED_FACTOR, WIND_DIRECTION_FACTOR = 0.045, 0.131
 
 GENERATIONS = 1000
+HOURS_PER_GEN = 1 # 24 generations = roughly one day
 
 # water budget is 12.5km^2 so 8 tiles
 MAX_WATER_TILES = 8
@@ -62,8 +64,8 @@ BURN_PROBABILITIES = {
 # rn im assuming 10 is about a day
 BURN_DURATION = {
     States.Canyon: (6,8),
-    States.Chaparral: (18,24), 
-    States.Forest: (120, 160), 
+    States.Chaparral: (12,72), 
+    States.Forest: (120, 720), 
     States.Town: (36,48) 
 }
 WET_DURATION = (4,8)
@@ -73,9 +75,6 @@ old_tile = None
 
 HAZARD_POS = {} # filled in by load_map
 initial_terrain = None
-
-# wind implementation
-WIND_SPEED_FACTOR, WIND_DIRECTION_FACTOR = 0.045, 0.131 #
 
 # turns compass directions into a row and column step on the grid
 COMPASS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1),
@@ -172,10 +171,6 @@ def transition_function(grid, neighbourstates, neighbourcounts):
     # hazard_count = sum((nb == States.Hazard) for nb in all_neighbours)
     lake_count = sum((nb == States.Lake) for nb in all_neighbours)
 
-    forest_neighbour = sum((nb == States.Forest) for nb in all_neighbours)
-    chaparral_neighbour = sum((nb == States.Chaparral) for nb in all_neighbours)
-    canyon_neighbour = sum((nb == States.Canyon) for nb in all_neighbours)
-
     burning_neighbours = np.maximum(
         burning_count - (0.2 * lake_count),
         0
@@ -190,23 +185,10 @@ def transition_function(grid, neighbourstates, neighbourcounts):
             bn = burning_neighbours[row, col]
             state = grid[row, col]
 
-            fn = forest_neighbour[row,col]  > 0
-            chn = chaparral_neighbour[row, col] > 0
-            can = canyon_neighbour[row, col] > 0
-
             match state:
                 # these ones wont change or burn
-                case States.Lake | States.Hazard: # | States.Burnt:
+                case States.Lake | States.Hazard | States.Burnt:
                     pass
-
-                # regrowth test
-                case States.Burnt:
-                    if fn and np.random.random() < 0.0001:
-                        new_grid[row,col] = States.Forest
-                    elif chn and np.random.random() < 0.0005:
-                        new_grid[row,col] = States.Chaparral
-                    elif can and np.random.random() < 0.001:
-                        new_grid[row,col] = States.Canyon
 
                 # decrease the burn timer, when depleted go to burnt                
                 case States.Burning:
@@ -227,6 +209,7 @@ def transition_function(grid, neighbourstates, neighbourcounts):
                         # if water dropped here, it goes wet instead of catching fire
                         if (row, col) in water_tiles:
                             new_grid[row, col] = States.Wet
+                            timers[row,col] = WET_DURATION
                             old_tile[(row, col)] = state
                             water_tiles.remove((row,col))
                             continue
@@ -284,8 +267,6 @@ def load_map(path):
         [mapping[cell] for cell in row]
         for row in rows
     ], dtype=int)
-
-HOURS_PER_GEN = 24 / 10  # 10 generations = roughly one day
 
 def time_to_town(timeline):
     town = (initial_terrain == States.Town) # makes a true/false grid marking town cells
