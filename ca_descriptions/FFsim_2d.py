@@ -24,10 +24,10 @@ IGNITION = "I" # P for power plant, I for incinerator start
 
 WIND_FROM = "N" # direction wind is coming FROM
 WIND_SPEED = 8 # speed in m/s
-WIND_SPEED_FACTOR, WIND_DIRECTION_FACTOR = 0.045, 0.131
+WIND_SPEED_FACTOR, WIND_DIRECTION_FACTOR = 0.045, 0.2
 
 GENERATIONS = 1000
-HOURS_PER_GEN = 1 # 24 generations = roughly one day
+HOURS_PER_GEN = 0.15 # 24 generations = roughly one day
 
 # water budget is 12.5km^2 so 8 tiles
 MAX_WATER_TILES = 8
@@ -54,18 +54,18 @@ class States(IntEnum):
 BURN_PROBABILITIES = {
     States.Canyon: 0.1,
     States.Chaparral: 0.02,
-    States.Forest: 0.004,
+    States.Forest: 0.0035,
     States.Town: 0.12
 }
 
 # this is how long a burning square will continue to burn for (in generations)
 # first figure is minimum second is mamximum (we'll use it as a range)
 
-# rn im assuming 10 is about a day
+# rn im assuming 1 is about a day
 BURN_DURATION = {
     States.Canyon: (6,8),
     States.Chaparral: (12,72), 
-    States.Forest: (120, 720), 
+    States.Forest: (120, 620),
     States.Town: (36,48) 
 }
 WET_DURATION = (4,8)
