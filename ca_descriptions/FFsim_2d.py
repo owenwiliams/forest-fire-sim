@@ -209,7 +209,8 @@ def transition_function(grid, neighbourstates, neighbourcounts):
                         # if water dropped here, it goes wet instead of catching fire
                         if (row, col) in water_tiles:
                             new_grid[row, col] = States.Wet
-                            timers[row,col] = WET_DURATION
+                            lb,ub = WET_DURATION
+                            timers[row,col] = np.random.randint(lb,ub+1)
                             old_tile[(row, col)] = state
                             water_tiles.remove((row,col))
                             continue
